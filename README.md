@@ -1,0 +1,1 @@
+A python program designed to solve a game of minesweeper in the browser. It is intended to be a learning exercise.
