@@ -3,6 +3,7 @@ import time
 
 import keyboard
 import pyautogui
+# from collections import deque
 
 
 def restart_game():
@@ -56,13 +57,16 @@ def right_click_coordinate(x,y):
     y_coord = (y * square_width) + starting_y
     pyautogui.rightClick(x_coord, y_coord)
 
-def build_game_state(current_game_board):
+def build_game_state():
     for row_index, row in enumerate(current_game_board):
         for col_index, element in enumerate(row):
             x_offset = (col_index * square_width) + starting_x
             y_offset = (row_index * square_width) + starting_y
             current_game_board[row_index][col_index] = calculate_square_value(x_offset, y_offset)
 
+    print_game_state()
+
+def print_game_state():
     print("Current game state:")
     for row in current_game_board:
         for element in row:
@@ -91,7 +95,7 @@ def calculate_square_value(x, y):
             return "?"
 
 
-def find_flags(current_game_board):
+def find_flags():
     print("Finding flags")
     for col_index, col in enumerate(current_game_board):
         for row_index, element in enumerate(col):
@@ -103,10 +107,11 @@ def find_flags(current_game_board):
 
             if len(adjacent_nodes) == int(element) and len(adjacent_nodes) > 0:
                 for adjacent_node in adjacent_nodes:
-                    value = calculate_square_value((adjacent_node[0] * square_width) + starting_x, (adjacent_node[1] * square_width) + starting_y)
-                    if not value == "F":
+                    # value = calculate_square_value((adjacent_node[0] * square_width) + starting_x, (adjacent_node[1] * square_width) + starting_y)
+                    value = current_game_board[adjacent_node[1]][adjacent_node[0]]
+                    if value == "-":
                         right_click_coordinate(adjacent_node[0], adjacent_node[1])
-                        current_game_board[row_index][col_index] = value
+                        current_game_board[adjacent_node[1]][adjacent_node[0]] = "F"
 
 
 def click_new_tiles():
@@ -118,16 +123,22 @@ def click_new_tiles():
 
             num_flags = 0
             for adjacent_node in adjacent_nodes:
-                value = calculate_square_value((adjacent_node[0] * square_width) + starting_x, (adjacent_node[1]* square_width) + starting_y)
+                # value = calculate_square_value((adjacent_node[0] * square_width) + starting_x, (adjacent_node[1]* square_width) + starting_y)
+                value = current_game_board[adjacent_node[1]][adjacent_node[0]]
                 if value == "F":
                     num_flags += 1
             if not element == 'F':
                 if num_flags == int(element) and len(adjacent_nodes) > num_flags > 0:
                     # print(f"Flags = number for tile {row_index, col_index}, safe to click")
                     for adjacent_node in adjacent_nodes:
-                        value = calculate_square_value((adjacent_node[0] * square_width) + starting_x, (adjacent_node[1] * square_width) + starting_y)
+                        # value = calculate_square_value((adjacent_node[0] * square_width) + starting_x, (adjacent_node[1] * square_width) + starting_y)
+                        value = current_game_board[adjacent_node[1]][adjacent_node[0]]
                         if not value == "F":
                             click_coordinate(adjacent_node[0], adjacent_node[1])
+                            # clicked_tile_value = calculate_square_value((adjacent_node[0] * square_width) + starting_x, (adjacent_node[1] * square_width) + starting_y)
+                            # tiles_to_check = deque()
+                            # if clicked_tile_value == "0":
+                            #     tiles_to_check.append(adjacent_node)
 
 
 if __name__ == "__main__":
@@ -149,13 +160,15 @@ if __name__ == "__main__":
     # #play = False
     play = True
     restart_game()
+    click_random_tile()
     # games_played = 1
 
     global current_game_board
     current_game_board = [["-" for x in range(grid_width)] for y in range(grid_width)]
     # print("Starting game: ",games_played)
+
     while play:
-        start_time = time.time()
+        # start_time = time.time()
         # Kill switch
         if keyboard.is_pressed('space'):
             play = False
@@ -172,18 +185,15 @@ if __name__ == "__main__":
         #     print("You Win!")
         #     play = False
 
-        # Select a tile
-        click_random_tile()
-
         # Build out game board state to make decisions
-        build_game_state(current_game_board)
+        build_game_state()
         # Calculate any missing flags from the board
-        find_flags(current_game_board)
-        # build_game_state(current_game_board)
+        find_flags()
+        # build_game_state()
         click_new_tiles()
-        end_time = time.time()
-        elapsed_time = end_time - start_time
-        print(f"Elapsed time for game loop: {elapsed_time}")
+        # end_time = time.time()
+        # elapsed_time = end_time - start_time
+        # print(f"Elapsed time for game loop: {elapsed_time}")
         if pyautogui.pixel(3466, 278) == (0, 0, 0) or pyautogui.pixel(3467, 293)== (0, 0, 0):
             play = False
 
