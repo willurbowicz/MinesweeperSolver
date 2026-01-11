@@ -3,7 +3,7 @@ import time
 
 import keyboard
 import pyautogui
-# from collections import deque
+from collections import deque
 
 
 def restart_game():
@@ -43,7 +43,6 @@ def find_adjacent_tiles(row_index, col_index):
 
     return adjacent_nodes
 
-
 def click_random_tile():
     click_coordinate((random.randrange(0, grid_width)),(random.randrange(0, grid_width)))
 
@@ -64,7 +63,7 @@ def build_game_state():
             y_offset = (row_index * square_width) + starting_y
             current_game_board[row_index][col_index] = calculate_square_value(x_offset, y_offset)
 
-    print_game_state()
+    # print_game_state()
 
 def print_game_state():
     print("Current game state:")
@@ -96,7 +95,8 @@ def calculate_square_value(x, y):
 
 
 def find_flags():
-    print("Finding flags")
+    # print("Finding flags")
+    made_move = False
     for col_index, col in enumerate(current_game_board):
         for row_index, element in enumerate(col):
             if not element.isnumeric() or element == "0":
@@ -111,10 +111,15 @@ def find_flags():
                     value = current_game_board[adjacent_node[1]][adjacent_node[0]]
                     if value == "-":
                         right_click_coordinate(adjacent_node[0], adjacent_node[1])
+                        made_move = True
                         current_game_board[adjacent_node[1]][adjacent_node[0]] = "F"
+
+    return made_move
 
 
 def click_new_tiles():
+    made_move = False
+    # print("Clicking Tiles")
     for col_index, row in enumerate(current_game_board):
         for row_index, element in enumerate(row):
             if not element.isnumeric() or element == "0":
@@ -128,6 +133,10 @@ def click_new_tiles():
                 if value == "F":
                     num_flags += 1
             if not element == 'F':
+                # origin_tile = (row_index, col_index)
+                # unknowns = set(find_adjacent_covered_tiles(row_index, col_index))
+                # remaining_mines = int(element) - num_flags
+                # list_of_constraints.append([origin_tile, unknowns, remaining_mines])
                 if num_flags == int(element) and len(adjacent_nodes) > num_flags > 0:
                     # print(f"Flags = number for tile {row_index, col_index}, safe to click")
                     for adjacent_node in adjacent_nodes:
@@ -135,16 +144,95 @@ def click_new_tiles():
                         value = current_game_board[adjacent_node[1]][adjacent_node[0]]
                         if not value == "F":
                             click_coordinate(adjacent_node[0], adjacent_node[1])
-                            # clicked_tile_value = calculate_square_value((adjacent_node[0] * square_width) + starting_x, (adjacent_node[1] * square_width) + starting_y)
-                            # tiles_to_check = deque()
-                            # if clicked_tile_value == "0":
-                            #     tiles_to_check.append(adjacent_node)
+                            made_move = True
+                            clicked_tile_value = calculate_square_value((adjacent_node[0] * square_width) + starting_x, (adjacent_node[1] * square_width) + starting_y)
+                            current_game_board[adjacent_node[1]][adjacent_node[0]] = clicked_tile_value
+                            if clicked_tile_value == "0":
+                                tiles_to_check = deque(find_adjacent_covered_tiles(adjacent_node[0], adjacent_node[1]))
+                                while len(tiles_to_check) > 0:
+                                    resolve_unknown_tiles(tiles_to_check)
+                                    tiles_to_check.popleft()
+    return made_move
+
+
+def resolve_unknown_tiles(queue):
+    for tile in queue:
+        clicked_tile_value = calculate_square_value((tile[0] * square_width) + starting_x, (tile[1] * square_width) + starting_y)
+        current_game_board[tile[1]][tile[0]] = clicked_tile_value
+        if clicked_tile_value == "0":
+            resolve_unknown_tiles(deque(find_adjacent_tiles(tile[0], tile[1])))
+
+
+def build_constraints():
+    constraints = []
+
+    for y in range(grid_width):
+        for x in range(grid_width):
+            value = current_game_board[y][x]
+
+            if not value.isdigit() or value == "0":
+                continue
+
+            unknowns = set()
+            flags = 0
+
+            for nx, ny in find_adjacent_tiles(x, y):
+                if current_game_board[ny][nx] == "-":
+                    unknowns.add((nx, ny))
+                elif current_game_board[ny][nx] == "F":
+                    flags += 1
+
+            remaining_mines = int(value) - flags
+
+            if remaining_mines < 0:
+                continue  # defensive, should not happen
+
+            if not unknowns:
+                continue
+
+            constraints.append(((x, y), unknowns, remaining_mines))
+
+    return constraints
+
+
+def try_subset_deduction(constraints):
+    for i in range(len(constraints)):
+        origin_a, unknowns_a, mines_a = constraints[i]
+
+        for j in range(len(constraints)):
+            if i == j:
+                continue
+
+            origin_b, unknowns_b, mines_b = constraints[j]
+
+            # A must be smaller or equal
+            if len(unknowns_a) > len(unknowns_b):
+                continue
+
+            # Must overlap
+            if unknowns_a.isdisjoint(unknowns_b):
+                continue
+
+            # Must be subset
+            if not unknowns_a.issubset(unknowns_b):
+                continue
+
+            if mines_a > mines_b:
+                continue
+
+            diff = unknowns_b - unknowns_a
+            diff_mines = mines_b - mines_a
+
+            if diff and diff_mines == 0:
+                return ("safe", next(iter(diff)))
+
+            if diff_mines == len(diff):
+                return ("mine", diff)
+
+    return None
 
 
 if __name__ == "__main__":
-    # starting_x = 3600-- 3321-- 3371
-    # starting_y = 205-- 389-- 390
-    # square_width = 16
     # Assumes the zoom level is set to 300%
     starting_x = 3278
     starting_y = 399
@@ -154,46 +242,70 @@ if __name__ == "__main__":
     # medium size board
     # grid_width = 16
 
+    # # Test code for getting the pixel color at cursor location
     # currx, curry = pyautogui.position()
     # print(pyautogui.position())
     # print(pyautogui.pixel(currx, curry))
-    # #play = False
-    play = True
-    restart_game()
-    click_random_tile()
-    # games_played = 1
 
-    global current_game_board
-    current_game_board = [["-" for x in range(grid_width)] for y in range(grid_width)]
-    # print("Starting game: ",games_played)
+    win_counter = 0
+    loss_counter = 0
 
-    while play:
-        # start_time = time.time()
-        # Kill switch
-        if keyboard.is_pressed('space'):
-            play = False
+    for m in range(1, 10):
+        print(f"Starting game {m}")
+        restart_game()
+        click_random_tile()
 
-        # Check if game has been lost
-        # if pyautogui.pixel(3467, 293)== (0, 0, 0):
-        #     print("Game Over")
-        #     games_played += 1
-        #     print ("Starting game: ", games_played)
-        #     restart_game()
-        #
-        # # Check if game has been won
-        # if pyautogui.pixel(3466, 278) == (0, 0, 0):
-        #     print("You Win!")
-        #     play = False
-
-        # Build out game board state to make decisions
+        has_valid_moves = False
+        game_over = False
+        global current_game_board
+        current_game_board = [["-" for x in range(grid_width)] for y in range(grid_width)]
         build_game_state()
-        # Calculate any missing flags from the board
-        find_flags()
-        # build_game_state()
-        click_new_tiles()
-        # end_time = time.time()
-        # elapsed_time = end_time - start_time
-        # print(f"Elapsed time for game loop: {elapsed_time}")
-        if pyautogui.pixel(3466, 278) == (0, 0, 0) or pyautogui.pixel(3467, 293)== (0, 0, 0):
-            play = False
+
+        while not game_over:
+            while not has_valid_moves:
+                one = find_flags()
+                two = click_new_tiles()
+
+                if not (one or two):
+                    has_valid_moves = True
+
+            # Ensure the victory popup has finished loading, then close it
+            time.sleep(0.5)
+            pyautogui.click(4019, 251)
+
+            if pyautogui.pixel(3467, 293)== (0, 0, 0):
+                print("You lose.")
+                loss_counter += 1
+                game_over = True
+            elif pyautogui.pixel(3466, 278) == (0, 0, 0):
+                print("You Win!")
+                win_counter += 1
+                game_over = True
+            else:
+                constraints = build_constraints()
+                result = try_subset_deduction(constraints)
+
+                if result:
+                    action, tiles = result
+
+                    for x, y in tiles:
+                        if action == "safe":
+                            click_coordinate(x, y)
+                        else:
+                            right_click_coordinate(x, y)
+
+                    continue  # go back to normal deduction
+
+                else:
+                    print("Really stuck, need to guess")
+                    for j in range(grid_width):
+                        for i in range(grid_width):
+                            value = current_game_board[i][j]
+                            if value == "-":
+                                click_coordinate(i, j)
+                                break
+
+                    continue
+
+    print(f"Games won: {win_counter}, Games lost: {loss_counter}")
 
