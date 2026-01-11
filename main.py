@@ -1,9 +1,8 @@
 import random
 import time
-
-import keyboard
-import pyautogui
 from collections import deque
+
+import pyautogui
 
 
 def restart_game():
@@ -162,76 +161,6 @@ def resolve_unknown_tiles(queue):
         if clicked_tile_value == "0":
             resolve_unknown_tiles(deque(find_adjacent_tiles(tile[0], tile[1])))
 
-
-def build_constraints():
-    constraints = []
-
-    for y in range(grid_width):
-        for x in range(grid_width):
-            value = current_game_board[y][x]
-
-            if not value.isdigit() or value == "0":
-                continue
-
-            unknowns = set()
-            flags = 0
-
-            for nx, ny in find_adjacent_tiles(x, y):
-                if current_game_board[ny][nx] == "-":
-                    unknowns.add((nx, ny))
-                elif current_game_board[ny][nx] == "F":
-                    flags += 1
-
-            remaining_mines = int(value) - flags
-
-            if remaining_mines < 0:
-                continue  # defensive, should not happen
-
-            if not unknowns:
-                continue
-
-            constraints.append(((x, y), unknowns, remaining_mines))
-
-    return constraints
-
-
-def try_subset_deduction(constraints):
-    for i in range(len(constraints)):
-        origin_a, unknowns_a, mines_a = constraints[i]
-
-        for j in range(len(constraints)):
-            if i == j:
-                continue
-
-            origin_b, unknowns_b, mines_b = constraints[j]
-
-            # A must be smaller or equal
-            if len(unknowns_a) > len(unknowns_b):
-                continue
-
-            # Must overlap
-            if unknowns_a.isdisjoint(unknowns_b):
-                continue
-
-            # Must be subset
-            if not unknowns_a.issubset(unknowns_b):
-                continue
-
-            if mines_a > mines_b:
-                continue
-
-            diff = unknowns_b - unknowns_a
-            diff_mines = mines_b - mines_a
-
-            if diff and diff_mines == 0:
-                return ("safe", next(iter(diff)))
-
-            if diff_mines == len(diff):
-                return ("mine", diff)
-
-    return None
-
-
 if __name__ == "__main__":
     # Assumes the zoom level is set to 300%
     starting_x = 3278
@@ -250,7 +179,7 @@ if __name__ == "__main__":
     win_counter = 0
     loss_counter = 0
 
-    for m in range(1, 10):
+    for m in range(1, 11):
         print(f"Starting game {m}")
         restart_game()
         click_random_tile()
@@ -282,30 +211,14 @@ if __name__ == "__main__":
                 win_counter += 1
                 game_over = True
             else:
-                constraints = build_constraints()
-                result = try_subset_deduction(constraints)
+                print("Really stuck, need to guess")
+                for j in range(grid_width):
+                    for i in range(grid_width):
+                        value = current_game_board[i][j]
+                        if value == "-":
+                            click_coordinate(j, i)
+                            break
 
-                if result:
-                    action, tiles = result
-
-                    for x, y in tiles:
-                        if action == "safe":
-                            click_coordinate(x, y)
-                        else:
-                            right_click_coordinate(x, y)
-
-                    continue  # go back to normal deduction
-
-                else:
-                    print("Really stuck, need to guess")
-                    for j in range(grid_width):
-                        for i in range(grid_width):
-                            value = current_game_board[i][j]
-                            if value == "-":
-                                click_coordinate(i, j)
-                                break
-
-                    continue
+                continue
 
     print(f"Games won: {win_counter}, Games lost: {loss_counter}")
-
