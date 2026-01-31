@@ -28,32 +28,34 @@ class GameWindowManager:
         "playing": "resources/smiley.png",
     }
 
+    TILES = {
+        "resources/tiles/tileBlank.png": "-",
+        "resources/tiles/tile0.png": "0",
+        "resources/tiles/tile1.png": "1",
+        "resources/tiles/tile2.png": "2",
+        "resources/tiles/tile3.png": "3",
+        "resources/tiles/tile4.png": "4",
+        "resources/tiles/tile5.png": "5",
+        # "resources/tiles/tile6.png": "6",
+        # "resources/tiles/tile7.png": "7",
+        # "resources/tiles/tile8.png": "8",
+        "resources/tiles/tileFlag.png": "F",
+        "resources/tiles/tileBomb.png": "B",
+    }
+
     def __init__(self):
         self.find_board_locations()
-
-        # pyautogui.click(board_border[0], board_border[1])
-
-        # self.loss_pixel = ((location.left.item() + (location.width / 2)) + 1.5,
-        #                    (location.top.item() + (location.height / 2)) + 8)
-        # self.win_pixel = ((location.left.item() + (location.width / 2)) + 1.5,
-        #                   (location.top.item() + (location.height / 2)) - 6)
-        # print(self.has_won())
-        # pyautogui.moveTo(self.win_pixel[0], self.win_pixel[1], duration=0.1)
-        # pos = pyautogui.position()
-        # print(self.win_pixel)
-        # print(pos)
-        # print(pyautogui.pixel(pos[0], pos[1]))
 
     def find_board_locations(self):
         location = self.get_smiley_location()
         if location is None:
             raise RuntimeError("Board not found on any monitor")
         self.smiley_coord = (location.left + location.width / 2, location.top + location.height / 2)
+        pyautogui.click(self.smiley_coord)
+        location = self.get_smiley_location()
         starting_tile = (int(self.smiley_coord[0]), int(self.smiley_coord[1] + location.height * 1.5))
         center = self.get_center_of_tile(starting_tile)
-        # pyautogui.moveTo(center[0], center[1])
         self.top_left_coord = self.find_first_tile(center)
-        # pyautogui.moveTo(self.top_left_coord[0], self.top_left_coord[1])
         self.count_board_width_and_height()
         print(f"Grid width: {self.grid_width}, Grid height: {self.grid_height}")
 
@@ -149,6 +151,35 @@ class GameWindowManager:
 
         self.square_width = abs(left) + abs(right) + 13
         return center
+
+    def convert_board_coords_to_pixels(self, x, y):
+        screen_x = self.top_left_coord[0] + (x * self.square_width)
+        screen_y = self.top_left_coord[1] + (y * self.square_width)
+        # tile = self.get_center_of_tile((screen_x, screen_y))
+        return screen_x, screen_y
+
+    def get_tile_value(self, board_x, board_y):
+        x, y = self.convert_board_coords_to_pixels(board_x, board_y)
+        tile_to_check = (int(x - (self.square_width / 2)), int(y - (self.square_width / 2)),
+                         int(x + (self.square_width / 2)), int(y + (self.square_width / 2)))
+
+        with mss.mss() as sct:
+            sct_img = sct.grab(tile_to_check)
+            output = "tile.png"
+            mss.tools.to_png(sct_img.rgb, sct_img.size, output=output)
+
+            for template in self.TILES.keys():
+                try:
+                    location = pyautogui.locate(
+                        template, "tile.png", confidence=0.8
+                    )
+                    if location:
+                        return self.TILES.get(template)
+
+                except pyautogui.ImageNotFoundException:
+                    continue
+
+        return None
 
     def get_smiley_location(self):
         # self.restart_game()

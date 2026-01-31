@@ -80,6 +80,8 @@ def calculate_square_value(x, y):
         case (123, 0, 0):
             return "5"
         case (0, 0, 0):
+            if (pyautogui.pixel(x, y + 7)) == (255, 0, 0):
+                return "B"
             return "F"
         case _:
             return "?"
@@ -156,6 +158,15 @@ def has_won():
     return True
 
 
+def has_lost():
+    for row in current_game_board:
+        for cell in row:
+            if cell == "B":
+                return True
+
+    return False
+
+
 if __name__ == "__main__":
     # # Test code for getting the pixel color at cursor location
     # currx, curry = pyautogui.position()
@@ -185,8 +196,8 @@ if __name__ == "__main__":
                 has_easy_moves = False
 
         # Ensure the victory popup has finished loading, then close it
-        time.sleep(0.5)
-        pyautogui.click(4019, 251)
+        # time.sleep(0.5)
+        # pyautogui.click(4019, 251)
 
         # if game_window_manager.get_game_state() == 'lose':
         #     # if pyautogui.pixel(game_window_manager.loss_pixel[0], game_window_manager.loss_pixel[1]) == (0, 0, 0):
@@ -194,30 +205,39 @@ if __name__ == "__main__":
         #     # if pyautogui.pixel(3634, 293) == (0, 0, 0):
         #     print("You lose.")
         #     game_over = True
-        print_game_state()
+
         if has_won():
             print("You Win!")
+            print_game_state()
+            game_over = True
+        elif has_lost():
+            print("You Lose!")
+            print_game_state()
             game_over = True
         else:
-            print("Really stuck, need to guess")
-            exit()
-            # # print_game_state()
-            # clicked = False
-            # for j in range(game_window_manager.grid_width):
-            #     for i in range(game_window_manager.grid_width):
-            #         value = current_game_board[i][j]
-            #         if value == "-":
-            #             game_window_manager.click_coordinate(j, i)
-            #             # found_tile = calculate_square_value(
-            #             #     (i * game_window_manager.square_width) + game_window_manager.starting_x,
-            #             #     (j * game_window_manager.square_width) + game_window_manager.starting_y)
-            #             # current_game_board[i][j] = found_tile
-            #             clicked = True
-            #             has_easy_moves = True
-            #             # print_game_state()
-            #             # print("test")
-            #             break
-            #     # if clicked:
-            #     #     break
-
-            # continue
+            # print("Really stuck, need to guess")
+            # exit()
+            # print_game_state()
+            clicked = False
+            for j in range(game_window_manager.grid_width):
+                for i in range(game_window_manager.grid_width):
+                    value = current_game_board[i][j]
+                    if value == "-":
+                        game_window_manager.click_coordinate(j, i)
+                        # found_tile = calculate_square_value(
+                        #     (i * game_window_manager.square_width) + game_window_manager.starting_x,
+                        #     (j * game_window_manager.square_width) + game_window_manager.starting_y)
+                        found_tile = game_window_manager.get_tile_value(j, i)
+                        current_game_board[i][j] = found_tile
+                        if found_tile == "0":
+                            tiles_to_check = deque(find_adjacent_covered_tiles(i, j))
+                            while len(tiles_to_check) > 0:
+                                resolve_unknown_tiles(tiles_to_check)
+                                tiles_to_check.popleft()
+                        elif found_tile == "B":  # clicked a bomb
+                            game_over = True
+                        clicked = True
+                        has_easy_moves = True
+                        break
+                if clicked:
+                    break
