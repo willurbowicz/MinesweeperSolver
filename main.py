@@ -1,7 +1,4 @@
-import time
 from collections import deque
-
-import pyautogui
 
 from GameWindowManager import GameWindowManager
 
@@ -44,47 +41,12 @@ def find_adjacent_tiles(row_index, col_index):
     return adjacent_nodes
 
 
-def build_game_state():
-    for row_index, row in enumerate(current_game_board):
-        for col_index, element in enumerate(row):
-            x_offset = (col_index * game_window_manager.square_width) + game_window_manager.starting_x
-            y_offset = (row_index * game_window_manager.square_width) + game_window_manager.starting_y
-            current_game_board[row_index][col_index] = calculate_square_value(x_offset, y_offset)
-
-    # print_game_state()
-
-
 def print_game_state():
     print("Current game state:")
     for row in current_game_board:
         for element in row:
             print(element, end=" ")
         print()
-
-
-def calculate_square_value(x, y):
-    tile_color = pyautogui.pixel(x, y)
-    match tile_color:
-        case (189, 189, 189):
-            if (pyautogui.pixel(x, y + 7)) != tile_color:
-                return "-"  # unselected tile
-            return "0"  # empty tile
-        case (0, 0, 255):
-            return "1"
-        case (0, 123, 0):
-            return "2"
-        case (255, 0, 0):
-            return "3"
-        case (0, 0, 123):
-            return "4"
-        case (123, 0, 0):
-            return "5"
-        case (0, 0, 0):
-            if (pyautogui.pixel(x, y + 7)) == (255, 0, 0):
-                return "B"
-            return "F"
-        case _:
-            return "?"
 
 
 def find_flags():
@@ -125,11 +87,8 @@ def click_new_tiles():
                         value = current_game_board[adjacent_node[1]][adjacent_node[0]]
                         if not value == "F":
                             game_window_manager.click_coordinate(adjacent_node[0], adjacent_node[1])
-                            time.sleep(0.05)
                             made_move = True
-                            clicked_tile_value = calculate_square_value(
-                                (adjacent_node[0] * game_window_manager.square_width) + game_window_manager.starting_x,
-                                (adjacent_node[1] * game_window_manager.square_width) + game_window_manager.starting_y)
+                            clicked_tile_value = game_window_manager.get_tile_value(adjacent_node[0], adjacent_node[1])
                             current_game_board[adjacent_node[1]][adjacent_node[0]] = clicked_tile_value
                             if clicked_tile_value == "0":
                                 tiles_to_check = deque(find_adjacent_covered_tiles(adjacent_node[0], adjacent_node[1]))
@@ -141,10 +100,7 @@ def click_new_tiles():
 
 def resolve_unknown_tiles(queue):
     for tile in queue:
-        # time.sleep(0.05)
-        clicked_tile_value = calculate_square_value(
-            (tile[0] * game_window_manager.square_width) + game_window_manager.starting_x,
-            (tile[1] * game_window_manager.square_width) + game_window_manager.starting_y)
+        clicked_tile_value = game_window_manager.get_tile_value(tile[0], tile[1])
         current_game_board[tile[1]][tile[0]] = clicked_tile_value
         if clicked_tile_value == "0":
             resolve_unknown_tiles(deque(find_adjacent_tiles(tile[0], tile[1])))
@@ -168,43 +124,32 @@ def has_lost():
 
 
 if __name__ == "__main__":
-    # # Test code for getting the pixel color at cursor location
-    # currx, curry = pyautogui.position()
-    # print(pyautogui.position())
-    # print(pyautogui.pixel(currx, curry))
-
     game_window_manager = GameWindowManager()
 
     current_game_board = [["-" for x in range(game_window_manager.grid_width)] for y in
                           range(game_window_manager.grid_width)]
 
     game_window_manager.restart_game()
-    game_window_manager.click_random_tile()
 
     has_easy_moves = True
     game_over = False
-    # global current_game_board
-    # current_game_board = [["-" for x in range(grid_width)] for y in range(grid_width)]
-    build_game_state()
+    game_window_manager.click_coordinate(0, 0)
+    found_tile = game_window_manager.get_tile_value(0, 0)
+    current_game_board[0][0] = found_tile
+    if found_tile == "0":
+        tiles_to_check = deque(find_adjacent_covered_tiles(0, 0))
+        while len(tiles_to_check) > 0:
+            resolve_unknown_tiles(tiles_to_check)
+            tiles_to_check.popleft()
 
     while not game_over:
         while has_easy_moves:
+            game_window_manager.handle_banner()
             one = find_flags()
             two = click_new_tiles()
 
             if not (one or two):
                 has_easy_moves = False
-
-        # Ensure the victory popup has finished loading, then close it
-        # time.sleep(0.5)
-        # pyautogui.click(4019, 251)
-
-        # if game_window_manager.get_game_state() == 'lose':
-        #     # if pyautogui.pixel(game_window_manager.loss_pixel[0], game_window_manager.loss_pixel[1]) == (0, 0, 0):
-        #     # if pyautogui.pixel(3467, 293) == (0, 0, 0):
-        #     # if pyautogui.pixel(3634, 293) == (0, 0, 0):
-        #     print("You lose.")
-        #     game_over = True
 
         if has_won():
             print("You Win!")
@@ -216,17 +161,12 @@ if __name__ == "__main__":
             game_over = True
         else:
             # print("Really stuck, need to guess")
-            # exit()
-            # print_game_state()
             clicked = False
             for j in range(game_window_manager.grid_width):
                 for i in range(game_window_manager.grid_width):
                     value = current_game_board[i][j]
                     if value == "-":
                         game_window_manager.click_coordinate(j, i)
-                        # found_tile = calculate_square_value(
-                        #     (i * game_window_manager.square_width) + game_window_manager.starting_x,
-                        #     (j * game_window_manager.square_width) + game_window_manager.starting_y)
                         found_tile = game_window_manager.get_tile_value(j, i)
                         current_game_board[i][j] = found_tile
                         if found_tile == "0":
@@ -235,6 +175,8 @@ if __name__ == "__main__":
                                 resolve_unknown_tiles(tiles_to_check)
                                 tiles_to_check.popleft()
                         elif found_tile == "B":  # clicked a bomb
+                            print("You Lose!")
+                            print_game_state()
                             game_over = True
                         clicked = True
                         has_easy_moves = True

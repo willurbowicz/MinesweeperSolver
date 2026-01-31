@@ -1,10 +1,8 @@
 import random
-
-import cv2
 import time
+
 import mss
 import pyautogui
-from PIL import Image
 
 
 class GameWindowManager:
@@ -65,13 +63,9 @@ class GameWindowManager:
         cont = True
         top_left_tile = (0, 0)
         while cont:
-            # for i in range(0, 6):
             tile_to_check = (first_tile[0] - (board_width * self.square_width), first_tile[1])
-            # pyautogui.moveTo(tile_to_check[0], tile_to_check[1])
-            # time.sleep(0.5)
             if pyautogui.pixel(int(tile_to_check[0]), int(tile_to_check[1])) == (255, 255, 255):
                 top_left_tile = int(tile_to_check[0]) + (self.square_width * 2), int(tile_to_check[1])
-                # pyautogui.click(top_left_tile[0], top_left_tile[1])
                 cont = False
             else:
                 board_width += 1
@@ -85,13 +79,7 @@ class GameWindowManager:
         cont = True
         while cont:
             tile_to_check = (tile[0] + (board_width * self.square_width), tile[1])
-            # pyautogui.moveTo(tile_to_check[0], tile_to_check[1])
-            # time.sleep(.3)
-            # center = self.get_center_of_tile(tile_to_check)
-            # print(f"tile: {tile_to_check}, center: {center}")
             if pyautogui.pixel(int(tile_to_check[0]), int(tile_to_check[1])) == (255, 255, 255):
-                # top_left_tile = tile_to_check[0] + (self.square_width * 2), tile_to_check[1]
-                # # pyautogui.click(top_left_tile[0], top_left_tile[1])
                 cont = False
             else:
                 board_width += 1
@@ -100,13 +88,7 @@ class GameWindowManager:
         cont = True
         while cont:
             tile_to_check = (tile[0], tile[1] + (board_height * self.square_width))
-            # pyautogui.moveTo(tile_to_check[0], tile_to_check[1])
-            # time.sleep(.3)
-            # center = self.get_center_of_tile(tile_to_check)
-            # print(f"tile: {tile_to_check}, center: {center}")
             if pyautogui.pixel(int(tile_to_check[0]), int(tile_to_check[1])) == (255, 255, 255):
-                # top_left_tile = tile_to_check[0] + (self.square_width * 2), tile_to_check[1]
-                # # pyautogui.click(top_left_tile[0], top_left_tile[1])
                 cont = False
             else:
                 board_height += 1
@@ -158,6 +140,25 @@ class GameWindowManager:
         # tile = self.get_center_of_tile((screen_x, screen_y))
         return screen_x, screen_y
 
+    def handle_banner(self):
+        with mss.mss() as sct:
+            # Capture the entire virtual screen (all monitors)
+            all_monitors_screenshot = sct.grab(sct.monitors[0])
+
+            # Save to file
+            output = "board.png"
+            mss.tools.to_png(all_monitors_screenshot.rgb, all_monitors_screenshot.size, output=output)
+            try:
+                location = pyautogui.locate(
+                    "resources/banner.png", "board.png", confidence=0.8
+                )
+                if location:
+                    pyautogui.click(location.left + (location.width / 2), location.top + (location.height / 2))
+                    time.sleep(1)
+
+            except pyautogui.ImageNotFoundException:
+                pass
+
     def get_tile_value(self, board_x, board_y):
         x, y = self.convert_board_coords_to_pixels(board_x, board_y)
         tile_to_check = (int(x - (self.square_width / 2)), int(y - (self.square_width / 2)),
@@ -182,7 +183,6 @@ class GameWindowManager:
         return None
 
     def get_smiley_location(self):
-        # self.restart_game()
         with mss.mss() as sct:
             # Capture the entire virtual screen (all monitors)
             all_monitors_screenshot = sct.grab(sct.monitors[0])
@@ -219,9 +219,4 @@ class GameWindowManager:
                               (random.randrange(0, self.grid_width)))
 
     def restart_game(self):
-        # pyautogui.click(self.loss_pixel)
-        # beginner
-        # pyautogui.click(3467, 293)
-        # intermediate
-        # pyautogui.click(3634, 293)
         pyautogui.click(self.smiley_coord[0], self.smiley_coord[1])
