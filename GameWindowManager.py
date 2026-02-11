@@ -34,7 +34,7 @@ class GameWindowManager:
         "resources/tiles/tile3.png": "3",
         "resources/tiles/tile4.png": "4",
         "resources/tiles/tile5.png": "5",
-        # "resources/tiles/tile6.png": "6",
+        "resources/tiles/tile6.png": "6",
         # "resources/tiles/tile7.png": "7",
         # "resources/tiles/tile8.png": "8",
         "resources/tiles/tileFlag.png": "F",
@@ -216,7 +216,7 @@ class GameWindowManager:
 
     def click_random_tile(self):
         self.click_coordinate((random.randrange(0, self.grid_width)),
-                              (random.randrange(0, self.grid_width)))
+                              (random.randrange(0, self.grid_height)))
 
     def restart_game(self):
         pyautogui.click(self.smiley_coord[0], self.smiley_coord[1])

@@ -21,6 +21,16 @@ def is_valid_tile(x, y):
     return valid_x and valid_y and is_covered_tile
 
 
+def find_adjacent_flags(x, y):
+    adjacent_flags = []
+    for x in range(x - 1, x + 2):
+        for y in range(y - 1, y + 2):
+            if is_valid_tile_or_flag(x, y) and current_game_board[x][y] == "F":  # and not (x == x and y == y):
+                adjacent_flags.append((x, y))
+
+    return adjacent_flags
+
+
 def find_adjacent_covered_tiles(row_index, col_index):
     adjacent_nodes = []
     for x in range(row_index - 1, row_index + 2):
@@ -123,11 +133,85 @@ def has_lost():
     return False
 
 
+def calculate_constraints():
+    constraints = []
+    for x in range(game_window_manager.grid_width):
+        for y in range(game_window_manager.grid_height):
+            if not current_game_board[y][x].isnumeric() or current_game_board[y][x] == "0":
+                continue
+            adjacent_nodes = find_adjacent_tiles(x, y)
+            unknowns = set()
+            flags = 0
+            for node in adjacent_nodes:
+                if current_game_board[node[1]][node[0]] == "-":
+                    unknowns.add(node)
+                elif current_game_board[node[1]][node[0]] == "F":
+                    flags += 1
+            if not unknowns:
+                continue
+            mines = int(current_game_board[y][x]) - flags
+            constraint = ((x, y), mines, unknowns)
+            if len(constraint) != 3:
+                continue
+            constraints.append(((x, y), mines, unknowns))
+    return constraints
+
+
+def perform_subset_logic():
+    constraints = calculate_constraints()
+    for i in range(len(constraints)):
+        for j in range(i + 1, len(constraints)):
+            origin_j, mines_j, unknowns_j = constraints[j]
+            origin_i, mines_i, unknowns_i = constraints[i]
+            if unknowns_j.issubset(unknowns_i):
+
+                if mines_j > mines_i:
+                    continue
+
+                diff_tiles = unknowns_i - unknowns_j
+                diff_mines = mines_i - mines_j
+                if diff_tiles:
+                    if diff_mines == 0:
+                        print(f"safe tiles: {diff_tiles}")
+                        tile = next(iter(diff_tiles))
+                        return tile, False
+                    elif diff_mines == len(diff_tiles):
+                        print(f"all mines: {diff_tiles}")
+                        tile = next(iter(diff_tiles))
+                        return tile, True
+
+            elif unknowns_i.issubset(unknowns_j):
+                if mines_i > mines_j:
+                    continue
+
+                diff_tiles = unknowns_j - unknowns_i
+                diff_mines = mines_j - mines_i
+                if diff_tiles:
+                    if diff_mines == 0:
+                        print(f"safe tiles: {diff_tiles}")
+                        tile = next(iter(diff_tiles))
+                        return tile, False
+                    elif diff_mines == len(diff_tiles):
+                        print(f"all mines: {diff_tiles}")
+                        tile = next(iter(diff_tiles))
+                        return tile, True
+            else:
+                print("Really stuck, need to guess")
+                best_guess = ((0, 0), 0)
+                for constraint in constraints:
+                    diff = len(constraint[2]) - constraint[1]
+                    if diff > best_guess[1]:
+                        best_guess = (constraint, diff)
+
+                tile = best_guess[0][2].pop()
+                return tile, False
+
+
 if __name__ == "__main__":
     game_window_manager = GameWindowManager()
 
     current_game_board = [["-" for x in range(game_window_manager.grid_width)] for y in
-                          range(game_window_manager.grid_width)]
+                          range(game_window_manager.grid_height)]
 
     game_window_manager.restart_game()
 
@@ -160,26 +244,23 @@ if __name__ == "__main__":
             print_game_state()
             game_over = True
         else:
-            # print("Really stuck, need to guess")
-            clicked = False
-            for j in range(game_window_manager.grid_width):
-                for i in range(game_window_manager.grid_width):
-                    value = current_game_board[i][j]
-                    if value == "-":
-                        game_window_manager.click_coordinate(j, i)
-                        found_tile = game_window_manager.get_tile_value(j, i)
-                        current_game_board[i][j] = found_tile
-                        if found_tile == "0":
-                            tiles_to_check = deque(find_adjacent_covered_tiles(i, j))
-                            while len(tiles_to_check) > 0:
-                                resolve_unknown_tiles(tiles_to_check)
-                                tiles_to_check.popleft()
-                        elif found_tile == "B":  # clicked a bomb
-                            print("You Lose!")
-                            print_game_state()
-                            game_over = True
-                        clicked = True
-                        has_easy_moves = True
-                        break
-                if clicked:
+            tile, is_bomb = perform_subset_logic()
+            found_tile = game_window_manager.get_tile_value(tile[0], tile[1])
+            if is_bomb:
+                game_window_manager.right_click_coordinate(tile[0], tile[1])
+                current_game_board[tile[1]][tile[0]] = "F"
+            else:
+                game_window_manager.click_coordinate(tile[0], tile[1])
+                value = game_window_manager.get_tile_value(tile[0], tile[1])
+                current_game_board[tile[1]][tile[0]] = value
+                if value == "B":
+                    print("You Lose!")
+                    print_game_state()
+                    game_over = True
                     break
+                if value == "0":
+                    tiles_to_check = deque(find_adjacent_covered_tiles(tile[0], tile[1]))
+                    while len(tiles_to_check) > 0:
+                        resolve_unknown_tiles(tiles_to_check)
+                        tiles_to_check.popleft()
+            has_easy_moves = True
