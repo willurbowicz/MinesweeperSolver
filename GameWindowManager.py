@@ -218,5 +218,5 @@ class GameWindowManager:
         self.click_coordinate((random.randrange(0, self.grid_width)),
                               (random.randrange(0, self.grid_height)))
 
-    def restart_game(self):
+    def reset_game(self):
         pyautogui.click(self.smiley_coord[0], self.smiley_coord[1])
