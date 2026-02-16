@@ -5,7 +5,8 @@ from MinesweeperSolver import MinesweeperSolver
 
 if __name__ == "__main__":
     game_window_manager = GameWindowManager()
-    minesweeper_solver = MinesweeperSolver(game_window_manager.grid_width, game_window_manager.grid_height)
+    minesweeper_solver = MinesweeperSolver(game_window_manager.grid_width, game_window_manager.grid_height,
+                                           game_window_manager)
 
     game_window_manager.reset_game()
 

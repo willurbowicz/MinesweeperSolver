@@ -1,18 +1,17 @@
 from collections import deque
 
-from GameWindowManager import GameWindowManager
-
 
 class MinesweeperSolver:
     current_game_board = []
     grid_width = 0
     grid_height = 0
-    game_window_manager = GameWindowManager()
+    game_window_manager = 0
 
-    def __init__(self, grid_width, grid_height):
+    def __init__(self, grid_width, grid_height, game_window_manager):
         self.grid_width = grid_width
         self.grid_height = grid_height
-        self.current_game_board = [["-" for _ in range(grid_width)] for y in
+        self.game_window_manager = game_window_manager
+        self.current_game_board = [["-" for _ in range(grid_width)] for _ in
                                    range(grid_height)]
 
     def is_valid_tile_or_flag(self, x, y):
@@ -203,8 +202,9 @@ class MinesweeperSolver:
                     best_guess = ((0, 0), 0)
                     for constraint in constraints:
                         diff = len(constraint[2]) - constraint[1]
-                        if diff > best_guess[1]:
-                            best_guess = (constraint, diff)
+                        chance_of_safe = diff / len(constraint[2])
+                        if chance_of_safe > best_guess[1]:
+                            best_guess = (constraint, chance_of_safe)
 
                     tile = best_guess[0][2].pop()
                     return tile, False

@@ -1,8 +1,11 @@
 import random
 import time
 
+import cv2
 import mss
 import pyautogui
+import numpy as np
+from PIL import Image
 
 
 class GameWindowManager:
@@ -42,16 +45,22 @@ class GameWindowManager:
     }
 
     def __init__(self):
+        self.cv2_templates = {
+            key: cv2.imread(key, cv2.IMREAD_GRAYSCALE)
+            for key in self.TILES.keys()
+        }
+        start = time.time()
         self.find_board_locations()
+        end = time.time()
+        elapsed = end - start
+        print(f"Time taken to find board: {str(elapsed)} seconds")
 
     def find_board_locations(self):
-        location = self.get_smiley_location()
-        if location is None:
+        self.smiley_coord, width = self.get_smiley_location()
+        if self.smiley_coord is None:
             raise RuntimeError("Board not found on any monitor")
-        self.smiley_coord = (location.left + location.width / 2, location.top + location.height / 2)
         pyautogui.click(self.smiley_coord)
-        location = self.get_smiley_location()
-        starting_tile = (int(self.smiley_coord[0]), int(self.smiley_coord[1] + location.height * 1.5))
+        starting_tile = (int(self.smiley_coord[0]), int(self.smiley_coord[1] + width * 1.5))
         center = self.get_center_of_tile(starting_tile)
         self.top_left_coord = self.find_first_tile(center)
         self.count_board_width_and_height()
@@ -166,19 +175,24 @@ class GameWindowManager:
 
         with mss.mss() as sct:
             sct_img = sct.grab(tile_to_check)
-            output = "tile.png"
-            mss.tools.to_png(sct_img.rgb, sct_img.size, output=output)
 
-            for template in self.TILES.keys():
-                try:
-                    location = pyautogui.locate(
-                        template, "tile.png", confidence=0.8
-                    )
-                    if location:
-                        return self.TILES.get(template)
+            img = np.array(sct_img)
+            img_gray = cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY)
+            threshold = 0.8
+            best_match = None
+            best_confidence = 0
 
-                except pyautogui.ImageNotFoundException:
-                    continue
+            for template_path, template_img in self.cv2_templates.items():
+
+                result = cv2.matchTemplate(img_gray, template_img, cv2.TM_CCOEFF_NORMED)
+                _, max_val, _, max_loc = cv2.minMaxLoc(result)
+
+                if max_val > best_confidence:
+                    best_confidence = max_val
+                    best_match = self.TILES[template_path]
+
+                if best_confidence >= threshold:
+                    return best_match
 
         return None
 
@@ -186,21 +200,17 @@ class GameWindowManager:
         with mss.mss() as sct:
             # Capture the entire virtual screen (all monitors)
             all_monitors_screenshot = sct.grab(sct.monitors[0])
-
-            # Save to file
-            output = "board.png"
-            mss.tools.to_png(all_monitors_screenshot.rgb, all_monitors_screenshot.size, output=output)
+            img = np.array(all_monitors_screenshot)
+            img_bgr = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            threshold = 0.85
 
             for template in self.SMILEYS.values():
-                try:
-                    location = pyautogui.locate(
-                        template, "board.png", confidence=0.8
-                    )
-                    if location:
-                        return location
-
-                except pyautogui.ImageNotFoundException:
-                    continue
+                cv2_template = cv2.imread(template, cv2.IMREAD_GRAYSCALE)
+                result = cv2.matchTemplate(img_bgr, cv2_template, cv2.TM_CCOEFF_NORMED)
+                if np.max(result) >= threshold:
+                    corner = cv2.minMaxLoc(result)[3]
+                    h, w = cv2_template.shape
+                    return (corner[0] + w / 2, corner[1] + h / 2), w
 
         return None
 
